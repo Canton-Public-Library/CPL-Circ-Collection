@@ -38,7 +38,7 @@ def create_new_row(file):
 
 def config(section):
     config = configparser.ConfigParser()
-    config.read(r'C:\data_collection\collector\config.ini')
+    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     return config[section]
 
 
