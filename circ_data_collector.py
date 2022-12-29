@@ -38,7 +38,7 @@ def create_new_row(file):
 
 def config(section):
     config = configparser.ConfigParser()
-    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    config.read(r'C:\data_collection\collector\config.ini')
     return config[section]
 
 
@@ -196,6 +196,7 @@ def get_ill(export,date):
 
     driver = webdriver.Chrome(service = Service(ChromeDriverManager().install()))
     driver.get(url)
+
     select_frame = driver.find_element(By.XPATH, '/html[1]/frameset[1]/frameset[2]/frame[2]') # locates frame containing the data table
     driver.switch_to.frame(select_frame) # switches to frame containing the data table
 
@@ -241,7 +242,10 @@ def get_circ_data(export_data,date,file):
     # Calls the functions to get data from Vea API, SierraDNA, and Innopac Millennium and the append function
     get_vea(export_data,date)
     get_sierra(export_data,date)
-    get_ill(export_data,date)
+    try: # selenium webdriver sometimes doesn't work
+        get_ill(export_data,date)
+    except Exception as e:
+        print(e)
     if config('Files')['mode'] == 'write':
         append_to_csv(file,export_data)
     else:
