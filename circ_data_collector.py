@@ -3,7 +3,6 @@ import requests
 import json
 import csv
 import psycopg2
-import sys
 import pandas as pd
 import os
 import sys 
@@ -23,9 +22,9 @@ def create_new_row(file):
     Args: file- the file which data will be appended to
     """
     data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
-        'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 'New Canton Patrons', 
-        'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 'Month', 'Year', 'Day', 'Day of Week Index', 
-        'Comments'], dtype = 'object')
+                            'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
+                            'New Canton Patrons', 'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 
+                            'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], dtype = 'object')
 
     data=data.where(pd.notnull(data), None) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
 
@@ -41,7 +40,9 @@ def config(section):
     Args: section- specific section from the config file
     """
     config = configparser.ConfigParser()
-    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    config.read(r'C:\data_collection\collector\config.ini')
+
+    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     return config[section]
 
 
@@ -94,7 +95,6 @@ def get_vea(export, date):
         }
     else:
         date_string = str(date) 
-        # define start and end dates
         start = datetime(year=int(date_string[0:4]), 
                         month=int(date_string[4:6]), 
                         day=int(date_string[6:8])) 
@@ -178,13 +178,9 @@ def get_sierra(export, mode):
     cursor.execute(new_canton) # add number of new patrons from canton
     sql_data += (cursor.fetchone()) 
     conn.close()
-    
+
     export['Date'] = sql_data[0] # add date to the export row
-    export_i = 3 # index for export row
-    for sql_i in range(1, 10): # add the rest of the SierraDNA data to export row
-        export[export_i] = sql_data[sql_i]
-        export_i += 1
-    
+    export[3:12] = sql_data[1:10] # add rest of sql data to export row
     print("Successfully retrieved SierraDNA data")
 
 
