@@ -47,7 +47,6 @@ def config(section):
 
 def get_token():
     """Returns an access token from SenSource."""
-   
     login_info = config('Vea')
 
     url = login_info['auth_url']
@@ -78,7 +77,6 @@ def get_vea(export, date):
     Args: date- specifies which date to get data from. Default is 'yesterday'
     Returns: dictionary containing results
     """
-
     url = config('Vea')['url']
     
     authtoken = get_token() #access token value
@@ -97,7 +95,9 @@ def get_vea(export, date):
     else:
         date_string = str(date) 
         # define start and end dates
-        start = datetime(year=int(date_string[0:4]), month=int(date_string[4:6]), day=int(date_string[6:8])) 
+        start = datetime(year=int(date_string[0:4]), 
+                        month=int(date_string[4:6]), 
+                        day=int(date_string[6:8])) 
         end = start + timedelta(days=1)
         params = {
         'relativeDate':'custom',
