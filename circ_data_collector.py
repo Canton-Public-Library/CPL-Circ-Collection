@@ -40,9 +40,8 @@ def config(section):
     Args: section- specific section from the config file
     """
     config = configparser.ConfigParser()
-    config.read(r'C:\data_collection\collector\config.ini')
-
-    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    # config.read(r'C:\data_collection\collector\config.ini')
+    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     return config[section]
 
 
@@ -209,6 +208,7 @@ def get_ill(export, date):
     if cpl not in table.text: 
         print("Interlibrary data not found.")
         return
+        
     # find ILL lent
     index = 3 
     while True:  
@@ -217,7 +217,8 @@ def get_ill(export, date):
             break
         index += 1 
     lent = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[3]').text # number lent is always in 3rd column
-    export['ILL Lent'] = lent        
+    export['ILL Lent'] = lent     
+
     if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: # assuming the index is the same for loans and borrows
         export['ILL Borrowed'] = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{index}]').text
     else:
@@ -256,7 +257,7 @@ def get_circ_data(export_data, date, file):
         get_ill(export_data, date)
     except Exception as e:
         print(e)
-    if config('Files')['mode'] == 'write':
+    if config('Files')['write'].lower() in ['true', 'yes']:
         append_to_csv(file, export_data)
     else:
         print(export_data)
@@ -267,23 +268,23 @@ def main():
     file = config('Files')['file']
     export_data = create_new_row(file)
     
+    if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
+        print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
+        return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
         date = 'yesterday'
         get_circ_data(export_data, date, file)
         return 0
-    elif sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
+    if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
             date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
             if date == 'q': 
-                quit() 
+                return 0
             elif not date.isnumeric() or len(date) != 8:
                 print('Invalid entry')
                 continue
             else:
                 get_circ_data(export_data, date, file)
-    else:
-        print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
-        return -1
 
 if __name__ == '__main__':
     main()
