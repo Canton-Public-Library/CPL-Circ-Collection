@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 import sys
 import configparser
@@ -21,7 +22,7 @@ def clean_and_format(file):
         'CurbAppt','ILL Lent','ILL Borrowed','Day of Week','Month','Year','Day','Day of Week Index','Comments'])
     df.sort_values(by = 'Date', inplace = True)
     df.reset_index(drop = True, inplace = True)
-
+    df = df.replace({np.nan: None}) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
     os.remove(file) 
     df.to_csv(file)
 
@@ -29,8 +30,8 @@ def clean_and_format(file):
 
 def main():
     config = configparser.ConfigParser()
-    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    # config.read(r'C:\data_collection\collector\config.ini')
+    config.read(r'C:\data_collection\collector\config.ini')
+    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     file = config['Files']['file']
     clean_and_format(file)
 

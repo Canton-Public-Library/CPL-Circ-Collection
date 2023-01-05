@@ -4,6 +4,7 @@ import json
 import csv
 import psycopg2
 import pandas as pd
+import numpy as np
 import os
 import sys 
 from selenium import webdriver 
@@ -24,14 +25,9 @@ def create_new_row(file):
     data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
                             'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
                             'New Canton Patrons', 'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 
-                            'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], dtype = 'object')
-
-    data=data.where(pd.notnull(data), None) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
-
-    with open(file, 'r') as csv_file:
-        id = int(csv_file.readlines()[-1].split(',')[0]) + 1 # get id of appending row in csv file
-    data['Id'] = id
-    
+                            'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], 
+                            dtype = 'int')
+    data = data.replace({np.nan: None}) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
     return data
 
 
@@ -40,8 +36,8 @@ def config(section):
     Args: section- specific section from the config file
     """
     config = configparser.ConfigParser()
-    # config.read(r'C:\data_collection\collector\config.ini')
-    config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    config.read(r'C:\data_collection\collector\config.ini')
+    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     return config[section]
 
 
