@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-import configparser
+from config import load_config, config_section 
 
 # Cleans and formats the CPL Circ CSV file to be compatible with Shiny Dashboard.
 # Adapted from CircDataCleaningFormatting.py
@@ -29,9 +29,8 @@ def clean_and_format(file):
     print("Data Cleaning and Formatting completed") # Letting the user know the script has run and the Data Cleaning is done.
 
 def main():
-    config = configparser.ConfigParser()
-    config.read(r'C:\data_collection\collector\config.ini')
-    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    config = load_config(r'C:\data_collection\collector\config.ini')
+    # config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     file = config['Files']['file']
     clean_and_format(file)
 

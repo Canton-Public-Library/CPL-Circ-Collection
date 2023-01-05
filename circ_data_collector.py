@@ -11,16 +11,15 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-import configparser
+from config import load_config
 
-# This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the innopac millennium table and appends it to a csv file.
+# This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
 # The clean_upload_append.bat file runs this script at 12:15 AM every day. 
 # To properly run this file, there needs to be a config.ini file in the same directory. 
 
-def create_new_row(file):
+def create_new_row():
     """Returns a Pandas series to store the data in a single row
-    Args: file- the file which data will be appended to
     """
     data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
                             'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
@@ -31,23 +30,13 @@ def create_new_row(file):
     return data
 
 
-def config(section):
-    """Returns requested section from config file
-    Args: section- specific section from the config file
+def get_token(login_config):
+    """Returns an access token from SenSource.
+    login_config is the Vea section from the config file.
     """
-    config = configparser.ConfigParser()
-    config.read(r'C:\data_collection\collector\config.ini')
-    # config.read(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    return config[section]
-
-
-def get_token():
-    """Returns an access token from SenSource."""
-    login_info = config('Vea')
-
-    url = login_info['auth_url']
-    client_id = login_info['client_id']
-    client_secret = login_info['client_secret']
+    url = login_config['auth_url']
+    client_id = login_config['client_id']
+    client_secret = login_config['client_secret']
     cred = {
         'grant_type':'client_credentials',
         'client_id':client_id,
@@ -61,21 +50,23 @@ def get_token():
 def filter_vea(data):
     """Filters the data from Vea API. So far only filters for door count, 
     but may be more useful when looking for more data.
-    Args: raw_data- dictionary containing Vea API data
+    data is a dictionary containing the Vea API data
     Returns: door count int
     """
     doorcount = data['sumins']
     return doorcount
 
 
-def get_vea(export, date):
+def get_vea(export, date, vea_config):
     """Retrieves data from Vea API
-    Args: date- specifies which date to get data from. Default is 'yesterday'
+    export is the new row that will be appended to the file.
+    date specifies which date to get data from. Default is 'yesterday'.
+    vea_config is the Vea section from the config file.
     Returns: dictionary containing results
     """
-    url = config('Vea')['url']
+    url = vea_config['url']
     
-    authtoken = get_token() #access token value
+    authtoken = get_token(vea_config) #access token value
     header = {
         'Authorization':'Bearer ' + str(authtoken),
         'Content-type':'application/json'
@@ -118,19 +109,19 @@ def get_vea(export, date):
     response.close()
 
 
-def get_sierra(export, mode):
+def get_sierra(export, mode, sierra_config):
     """Connects to the Sierra database and collects circulation data
-    Args: mode- the date mode to query. Either yesterday or custom date.
+    export is the new row that will be appended to the file.
+    mode is the date mode to query. Either yesterday or custom date.
+    sierra_config is the SierraDNA section from the config file.
     Returns: circulation data as a tuple object.
     """
-    login_info = config('SierraDNA')
-    
     conn = psycopg2.connect(
-        database = login_info['database'],
-        host = login_info['host'],
-        user = login_info['user'],
-        password = login_info['password'],
-        port = login_info['port']
+        database = sierra_config['database'],
+        host = sierra_config['host'],
+        user = sierra_config['user'],
+        password = sierra_config['password'],
+        port = sierra_config['port']
     )
 
     if mode == 'yesterday':
@@ -179,18 +170,20 @@ def get_sierra(export, mode):
     print("Successfully retrieved SierraDNA data")
 
 
-def get_ill(export, date):
-    """Retrieves data on interlibrary loans and borrowing from innopac millennium website
-    Args: export- the data row that will be appended; date- because the site does not 
+def get_mel(export, date, mel_config):
+    """Retrieves data on interlibrary loans and borrowing from MeL website
+    date- because the site does not 
     support specific dates, "manual" mode on this will not work.
+    export is the new row that will be appended to the file.
+    date- because the site does not support specific dates, "manual" mode on this will not work.
+    mel_config is the MeL section from the config file.
     """ 
     if date != 'yesterday': 
         export['Comments'] = 'manual entry required for ILL lent and ILL borrowed'
         return
 
-    info = config('Innopac') # get config info 
-    url = info['url'] 
-    cpl = info['code'] # get library code
+    url = mel_config['url'] 
+    cpl = mel_config['code'] # get library code
 
     driver = webdriver.Chrome(service = Service(ChromeDriverManager().install()))
     driver.get(url)
@@ -231,8 +224,8 @@ def get_ill(export, date):
 
 def append_to_csv(file_name, data): 
     """Appends the collected data into the CIRC-DAILY.csv file as a single row. 
-    Args: file_name- the name of the file being edited; data- a list 
-    representing a single row of data that will be appended
+    file_name is the name of the file being edited
+    data is the new row of data that will be appended.
     """
     try:
         with open(file_name, 'a', newline = '') as file:
@@ -243,17 +236,18 @@ def append_to_csv(file_name, data):
         print('Could not modify file.')
 
 
-def get_circ_data(export_data, date, file):
+def get_circ_data(export_data, date, config, file):
     """Calls the functions to get data from Vea API, SierraDNA, 
-    and Innopac Millennium and the append function
+    and MeL and the append function.
     """
-    get_vea(export_data, date)
-    get_sierra(export_data, date)
+    get_vea(export_data, date, config['Vea'])
+    get_sierra(export_data, date, config['SierraDNA'])
     try: # selenium webdriver sometimes doesn't work
-        get_ill(export_data, date)
+        get_mel(export_data, date, config['MeL'])
     except Exception as e:
         print(e)
-    if config('Files')['write'].lower() in ['true', 'yes']:
+    if config['Files']['write'].lower() in ['true', 'yes']:
+        print("Writing to file...")
         append_to_csv(file, export_data)
     else:
         print(export_data)
@@ -261,15 +255,17 @@ def get_circ_data(export_data, date, file):
 
 
 def main():
-    file = config('Files')['file']
-    export_data = create_new_row(file)
+    config = load_config(r'C:\data_collection\collector\config.ini')
+    # config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    file = config['Files']['file']
+    export_data = create_new_row()
     
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
         date = 'yesterday'
-        get_circ_data(export_data, date, file)
+        get_circ_data(export_data, date, config, file)
         return 0
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
@@ -280,7 +276,7 @@ def main():
                 print('Invalid entry')
                 continue
             else:
-                get_circ_data(export_data, date, file)
+                get_circ_data(export_data, date, config, file)
 
 if __name__ == '__main__':
     main()
