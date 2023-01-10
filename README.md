@@ -31,8 +31,9 @@ Python script that reformats, sorts, and automatically generates new fields to t
 Contains confidential information such as URLs and credentials for database access.
 Currently not contained in repository for security concerns. 
 
-**NOTE**: for the collection script to append data to the data files, the “write” 
-variable under the [Files] section of the configuration file must be set to True. 
+  **NOTE**: for the collection script to append data to the data files, the “write” 
+  variable under the [Files] section of the configuration file must be set to True. 
+
 5.	**Configuration Module** `\data_collector\config.py`
 Python module containing functions for parsing the config.ini file. Used by both 
 the cleaning and collection script.
