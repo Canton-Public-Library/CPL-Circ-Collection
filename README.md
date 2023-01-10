@@ -70,7 +70,7 @@ Total Checked In, Total Checked Out Reporting, Holds, New Patrons, New Canton Pa
 `E:\APPLICATIONS\MATERIALS` contains additional functionalities for debugging purposes:
 1.	**Log files** `\Logs`
 
-      When clean_upload_append.bat is executed, all console outputs are saved as log files. 
+      When `clean_upload_append.bat` is executed, all console outputs are saved as log files. 
 
       **NOTE**: because the collection script collects data from the previous day, each log file
       is named by the date of execution rather than the date from which data is pulled from.
