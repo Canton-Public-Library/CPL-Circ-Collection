@@ -26,12 +26,12 @@ The directory `E:\APPLICATIONS\MATERIALS` on the cpl-batchops server contains
 the following components for automating and collecting data:
 1.	**Virtual environment** `\venv` 
   
-  Directory containing the virtual environment for running the application. The 
-  required Python packages are listed in requirements.txt. 
+      Directory containing the virtual environment for running the application. The 
+      required Python packages are listed in requirements.txt. 
 
 2.	**Collection script** `\data_collector\circ_data_collector.py`
 
-  Python script that collects data from the previous day from the 3 [data sources](https://github.com/Canton-Public-Library/CPL-Circ-    Collection/blob/main/README.md#data-sources) and appends it to the data file. 
+Python script that collects data from the previous day from the 3 [data sources](https://github.com/Canton-Public-Library/CPL-Circ-Collection/blob/main/README.md#data-sources) and appends it to the data file. 
 
 3.	**Cleaning script** `\circ_data_cleaner.py`
 
