@@ -24,7 +24,7 @@ the following components for automating and collecting data:
 Directory containing the virtual environment for running the application. The 
 required Python packages are listed in requirements.txt. 
 2.	**Collection script** `\data_collector\circ_data_collector.py`
-Python script that collects data from the previous day from the 3 [data sources] 
+Python script that collects data from the previous day from the 3 [data sources]
 (https://github.com/Canton-Public-Library/CPL-Circ-Collection/blob/main/README.md#data-sources)
 and appends it to the data file. 
 3.	**Cleaning script** `\circ_data_cleaner.py`
@@ -32,6 +32,7 @@ Python script that reformats, sorts, and automatically generates new fields to t
 4.	**Configuration file** `\data_collector\config.ini`
 Contains confidential information such as URLs and credentials for database access.
 Currently not contained in repository for security concerns. 
+
 **NOTE**: for the collection script to append data to the data files, the “write” 
 variable under the [Files] section of the configuration file must be set to True. 
 5.	**Configuration Module** `\data_collector\config.py`
