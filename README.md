@@ -7,8 +7,7 @@ by the CPL Streamlit app.
 
 ## Data Files
 There are two versions of the file containing all the daily circulation data:
-1. **Working data file** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\Data
-\CPLCircShinyDashboardData\CPL Circ Data.csv`
+1. **Working data file** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\Data\CPLCircShinyDashboardData\CPL Circ Data.csv`
 
       This is the version that the application modifies directly. Awaits cleaning 
       and reformatting before being published to the web server.
