@@ -18,7 +18,7 @@ There are two versions of the file containing all the daily circulation data:
 2. **Backup working data** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\\Data\CPLCircShinyDashboardData\CPL Circ Data - Backup.csv`
 
       Backup of the working data file. If the main working data file is corrupted or lost, 
-      simply restore it by renaming the backup file to` CPL Circ Data.csv`
+      simply restore it by renaming the backup file to `CPL Circ Data.csv`
 
 3.	[**Web server data file**](https://sat.cantonpl.org/shiny/CPL%20Circ%20Data.csv)
 
