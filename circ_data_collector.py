@@ -5,6 +5,7 @@ import csv
 import psycopg2
 import pandas as pd
 import numpy as np
+from shutil import copyfile
 import os
 import sys 
 from selenium import webdriver 
@@ -223,7 +224,7 @@ def get_mel(export, date, mel_config):
 
 
 def append_to_csv(file_name, data): 
-    """Appends the collected data into the CIRC-DAILY.csv file as a single row. 
+    """Appends the collected data into the CPL Circ Data.csv file as a single row. 
     file_name is the name of the file being edited
     data is the new row of data that will be appended.
     """
@@ -231,9 +232,15 @@ def append_to_csv(file_name, data):
         with open(file_name, 'a', newline = '') as file:
             writer = csv.writer(file)
             writer.writerow(data)
-        print('Successfully appended data')
+        print('Successfully appended data')    
     except Exception:
         print('Could not modify file.')
+
+
+def create_backup(file, backup):
+    """Creates a backup of the circ data file"""
+    path = copyfile(file, backup)
+    print(f"Backup created: {path}")
 
 
 def get_circ_data(export_data, date, config, file):
@@ -249,6 +256,7 @@ def get_circ_data(export_data, date, config, file):
     if config['Files']['write'].lower() in ['true', 'yes']:
         print("Writing to file...")
         append_to_csv(file, export_data)
+        create_backup(file, config['Files']['backup'])
     else:
         print(export_data)
         print(r'Read only. To write to file, change "mode" in config.ini to "write".')
