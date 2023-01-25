@@ -15,7 +15,12 @@ There are two versions of the file containing all the daily circulation data:
       **NOTE**: The working data file must not be opened on any computer while the 
       application is running, or else the new data cannot be appended. 
 
-2.	[**Web server data file**](https://sat.cantonpl.org/shiny/CPL%20Circ%20Data.csv)
+2. **Backup working data** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\\Data\CPLCircShinyDashboardData\CPL Circ Data - Backup.csv`
+
+      Backup of the working data file. If the main working data file is corrupted or lost, 
+      simply restore it by renaming the backup file to` CPL Circ Data.csv`
+
+3.	[**Web server data file**](https://sat.cantonpl.org/shiny/CPL%20Circ%20Data.csv)
 
       The Streamlit app reads the data from this version. This version is copied from 
       the working version and cannot be modified directly by the application.
