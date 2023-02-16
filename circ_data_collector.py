@@ -39,13 +39,19 @@ def get_token(login_config):
     client_id = login_config['client_id']
     client_secret = login_config['client_secret']
     cred = {
-        'grant_type':'client_credentials',
-        'client_id':client_id,
-        'client_secret':client_secret
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret
     }
     response = requests.post(url, json = cred)
+
     response.close()
-    return response.json()['access_token'] #returns access token VALUE
+
+    if response.status_code == 200:
+        print(f'Successfully obtained access token: {response.status_code}')
+        return response.json()['access_token'] #returns access token VALUE
+    else: 
+        print(f'Access token not obtained: {response.status_code}')
 
 
 def filter_vea(data):
@@ -68,37 +74,38 @@ def get_vea(export, date, vea_config):
     url = vea_config['url']
     
     authtoken = get_token(vea_config) #access token value
-    header = {
-        'Authorization':'Bearer ' + str(authtoken),
-        'Content-type':'application/json'
+    
+    auth = {
+        'Authorization': f'Bearer {str(authtoken)}',
+        'Content-type': 'application/json'
     }
     
     if date == 'yesterday':
         params = {
-        'relativeDate':date,
-        'dateGroupings':'day',
-        'entityType':'sensor',
-        'metrics':'ins',
+            'relativeDate': date,
+            'dateGroupings': 'day',
+            'entityType': 'sensor',
+            'metrics': 'ins',
         }
     else:
         date_string = str(date) 
-        start = datetime(year=int(date_string[0:4]), 
-                        month=int(date_string[4:6]), 
-                        day=int(date_string[6:8])) 
-        end = start + timedelta(days=1)
+        start = datetime(year = int(date_string[0:4]), 
+                        month = int(date_string[4:6]), 
+                        day = int(date_string[6:8])) 
+        end = start + timedelta(days = 1)
         params = {
-        'relativeDate':'custom',
-        'startDate':start,
-        'endDate':end,
-        'dateGroupings':'day',
-        'entityType':'sensor',
-        'metrics':'ins',
+            'relativeDate': 'custom',
+            'startDate': start,
+            'endDate': end,
+            'dateGroupings': 'day',
+            'entityType': 'sensor',
+            'metrics': 'ins',
         }
 
-    response = requests.get(url, headers = header, params = params)
+    response = requests.get(url, headers = auth, params = params)
 
     if response.status_code == 200:
-        print('API retrieval success:', response.status_code)
+        print(f'API retrieval success: {response.status_code}')
         raw_data = response.json()['results']
         for item in raw_data:
             if item['name'] == 'Main Entrance': # look for dictionary that contains main entrance ins
@@ -106,7 +113,7 @@ def get_vea(export, date, vea_config):
                 break
         print("Successfully retrieved Vea API data")
     else: 
-        print('Error:', response.status_code)
+        print(f'Error: {response.status_code}')
     response.close()
 
 
@@ -138,8 +145,8 @@ def get_sierra(export, mode, sierra_config):
         count(case when (op_code = 'i') then op_code end) as totalcheckedin,
         count(case when (op_code = 'o' or op_code ='r') then op_code end) as totalcheckedoutreporting,
         count(case when (op_code like 'n%') then op_code end) as holds
-    from sierra_view.circ_trans 
-    where date(transaction_gmt) = date({date})::date;"""
+        from sierra_view.circ_trans 
+        where date(transaction_gmt) = date({date})::date;"""
 
     new_patrons = f"""SELECT count(*)
         FROM sierra_view.patron_view
@@ -212,7 +219,7 @@ def get_mel(export, date, mel_config):
     if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: # assuming the index is the same for loans and borrows
         export['ILL Borrowed'] = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{index}]').text
     else:
-        col_num=3
+        col_num = 3
         while True: 
             html_col=driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{col_num}]')
             if cpl in html_col.text: # looks for the column number of zv052
