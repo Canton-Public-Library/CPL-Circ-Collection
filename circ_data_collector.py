@@ -16,19 +16,19 @@ from config import load_config
 
 # This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
-# The clean_upload_append.bat file runs this script at 12:15 AM every day. 
+# The clean_upload_append.bat file runs this script at 8:00 AM every day. 
 # To properly run this file, there needs to be a config.ini file in the same directory. 
 
-def create_new_row():
-    """Returns a Pandas series to store the data in a single row
-    """
-    data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
-                            'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
-                            'New Canton Patrons', 'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 
-                            'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], 
-                            dtype = 'int')
-    data = data.replace({np.nan: None}) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
-    return data
+# def create_new_row():
+#     """Returns a Pandas series to store the data in a single row
+#     """
+#     data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
+#                             'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
+#                             'New Canton Patrons', 'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 
+#                             'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], 
+#                             dtype = 'int')
+#     data = data.replace({np.nan: None}) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
+#     return data
 
 
 def get_token(login_config):
@@ -173,8 +173,13 @@ def get_sierra(export, mode, sierra_config):
     sql_data += (cursor.fetchone()) 
     conn.close()
 
-    export['Date'] = sql_data[0] # add date to the export row
-    export[3:12] = sql_data[1:10] # add rest of sql data to export row
+    cols = ('Date','CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
+            'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 
+            'Holds', 'New Patrons', 'New Canton Patrons')
+
+    for i, key in enumerate(cols):
+        export[key] = sql_data[i]
+
     print("Successfully retrieved SierraDNA data")
 
 
@@ -230,57 +235,84 @@ def get_mel(export, date, mel_config):
     print("Successfully retrieved interlibrary data")
 
 
-def append_to_csv(file_name, data): 
-    """Appends the collected data into the CPL Circ Data.csv file as a single row. 
-    file_name is the name of the file being edited
-    data is the new row of data that will be appended.
-    """
-    try:
-        with open(file_name, 'a', newline = '') as file:
-            writer = csv.writer(file)
-            writer.writerow(data)
-        print('Successfully appended data')    
-    except Exception:
-        print('Could not modify file.')
+# def append_to_csv(file_name, data): 
+#     """Appends the collected data into the CPL Circ Data.csv file as a single row. 
+#     file_name is the name of the file being edited
+#     data is the new row of data that will be appended.
+#     """
+#     try:
+#         with open(file_name, 'a', newline = '') as file:
+#             writer = csv.writer(file)
+#             writer.writerow(data)
+#         print('Successfully appended data')    
+#     except Exception:
+#         print('Could not modify file.')
 
 
-def create_backup(file, backup):
-    """Creates a backup of the circ data file"""
-    path = copyfile(file, backup)
-    print(f"Backup created: {path}")
+# def create_backup(file, backup):
+#     """Creates a backup of the circ data file"""
+#     path = copyfile(file, backup)
+#     print(f"Backup created: {path}")
 
 
-def get_circ_data(export_data, date, config, file):
+# def get_circ_data(export_data, date, config, file):
+#     """Calls the functions to get data from Vea API, SierraDNA, 
+#     and MeL and the append function.
+#     """
+#     get_vea(export_data, date, config['Vea'])
+#     get_sierra(export_data, date, config['SierraDNA'])
+#     try: # selenium webdriver sometimes doesn't work
+#         get_mel(export_data, date, config['MeL'])
+#     except Exception as e:
+#         print(e)
+#     if config['Files']['write'].lower() in ['true', 'yes']:
+#         print("Writing to file...")
+#         append_to_csv(file, export_data)
+#         create_backup(file, config['Files']['backup'])
+#     else:
+#         print(export_data)
+#         print(r'Read only. To write to file, change "mode" in config.ini to "write".')
+
+
+def get_circ_data(date, config):
     """Calls the functions to get data from Vea API, SierraDNA, 
-    and MeL and the append function.
+    and MeL and the append function. Returns a dictionary with
+    the new data.
     """
-    get_vea(export_data, date, config['Vea'])
-    get_sierra(export_data, date, config['SierraDNA'])
+    new_row = {}
+    get_vea(new_row, date, config['Vea'])
+    get_sierra(new_row, date, config['SierraDNA'])
     try: # selenium webdriver sometimes doesn't work
-        get_mel(export_data, date, config['MeL'])
+        get_mel(new_row, date, config['MeL'])
     except Exception as e:
         print(e)
-    if config['Files']['write'].lower() in ['true', 'yes']:
-        print("Writing to file...")
-        append_to_csv(file, export_data)
-        create_backup(file, config['Files']['backup'])
-    else:
-        print(export_data)
-        print(r'Read only. To write to file, change "mode" in config.ini to "write".')
+    return new_row
+
+
+def to_system(df, csv, backup, parquet):
+    """Generate CSV, backup CSV, and parquet file"""
+    df.to_csv(csv)
+    df.to_csv(backup)
+    df.to_parquet(parquet)
+    print(f"CSV generated: {csv}")
+    print(f"Backup CSV generated: {backup}")
+    print(f"Parquet generated: {parquet}")
 
 
 def main():
-    config = load_config(r'C:\data_collection\collector\config.ini')
-    # config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    file = config['Files']['file']
-    export_data = create_new_row()
+    config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    csv = config['Files']['csv']
+    backup = config['Files']['backup']
+    parquet = config['Files']['parquet']
+    df = pd.read_csv(csv)
     
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
         date = 'yesterday'
-        get_circ_data(export_data, date, config, file)
+        updated_df = get_circ_data(date, config)
+        to_system(updated_df, csv, backup, parquet)
         return 0
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
@@ -291,7 +323,9 @@ def main():
                 print('Invalid entry')
                 continue
             else:
-                get_circ_data(export_data, date, config, file)
+                updated_df = get_circ_data(date, config)
+                to_system(updated_df, csv, backup, parquet)
+
 
 if __name__ == '__main__':
     main()
