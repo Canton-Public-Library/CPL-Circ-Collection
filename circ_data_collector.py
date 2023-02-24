@@ -8,13 +8,11 @@ import numpy as np
 from shutil import copyfile
 import os
 import sys 
-import sqlite3 as db
 from selenium import webdriver 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from config import load_config
-from circ_data_cleaner import clean_and_format
 
 # This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
@@ -287,9 +285,7 @@ def get_circ_data(date, config, csv):
     and MeL and the append function. Returns a dictionary with
     the new data.
     """
-    # new_row = {'id': None}
     new_row = {}
-
     df = pd.read_csv(csv)
     get_vea(new_row, date, config['Vea'])
     get_sierra(new_row, date, config['SierraDNA'])
@@ -298,49 +294,42 @@ def get_circ_data(date, config, csv):
     except Exception as e:
         print(e)
     # get_curb(new_row, csv)
-    df2 = pd.DataFrame([new_row])
-    return df2
+    updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index = True)
+    return updated_df
 
 
-def to_system(df, config):
+def to_system(df, csv, backup):
     """Generate CSV, backup CSV, and parquet file"""
-    csv = config['Files']['csv']
-    backup = config['Files']['backup']
     df.iloc[:, 1:21].to_csv(csv)
-    df.iloc[:, 1:21].to_csv(backup)
+    df.iloc[:, 1:21](backup)
     print(f"CSV generated: {csv}")
     print(f"Backup CSV generated: {backup}")
 
 
 def main():
     config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    database = config['Files']['db']
-    conn = db.connect(database)
-
+    csv = config['Files']['csv']
+    backup = config['Files']['backup']
+    
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
-        new_row = get_circ_data('yesterday', config, csv)
-        new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
-        df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
-        to_system(df, config)
+        updated_df = get_circ_data('yesterday', config, csv)
+        to_system(updated_df, csv, backup)
+        return 0
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
             date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
             if date == 'q': 
-                break
+                return 0
             elif not date.isnumeric() or len(date) != 8:
                 print('Invalid entry')
                 continue
             else:
-                new_row = get_circ_data(date, config, csv)
-                new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
-                df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
-                to_system(df, config)
-    conn.commit()
-    conn.close()
-    return 0
+                updated_df = get_circ_data(date, config, csv)
+                to_system(updated_df, csv, backup)
+
 
 if __name__ == '__main__':
     main()
