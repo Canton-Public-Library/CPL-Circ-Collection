@@ -293,11 +293,11 @@ def get_circ_data(date, config, csv):
     df = pd.read_csv(csv)
     get_vea(new_row, date, config['Vea'])
     get_sierra(new_row, date, config['SierraDNA'])
-    # try: # selenium webdriver sometimes doesn't work
-    #     get_mel(new_row, date, config['MeL'])
-    # except Exception as e:
-    #     print(e)
-    get_curb(new_row, csv)
+    try: # selenium webdriver sometimes doesn't work
+        get_mel(new_row, date, config['MeL'])
+    except Exception as e:
+        print(e)
+    # get_curb(new_row, csv)
     df2 = pd.DataFrame([new_row])
     return df2
 
@@ -322,8 +322,8 @@ def main():
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
         new_row = get_circ_data('yesterday', config, csv)
-        new_row.to_sql("test", conn, if_exists = "append", index = False)
-        df = pd.read_sql_query("SELECT * FROM test", conn)
+        new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
+        df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
         to_system(df, config)
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
@@ -335,8 +335,8 @@ def main():
                 continue
             else:
                 new_row = get_circ_data(date, config, csv)
-                new_row.to_sql("test", conn, if_exists = "append", index = False)
-                df = pd.read_sql_query("SELECT * FROM test", conn)
+                new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
+                df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
                 to_system(df, config)
     conn.commit()
     conn.close()
