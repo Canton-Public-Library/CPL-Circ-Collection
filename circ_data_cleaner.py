@@ -26,9 +26,8 @@ def clean_and_format(df):
 
 
 def main():
-    config = load_config(r'C:\data_collection\collector\config.ini')
-    # config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    file = config['Files']['file']
+    config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    file = config['Files']['csv']
     df = pd.read_csv(file) 
     df = clean_and_format(df)
     os.remove(file) 

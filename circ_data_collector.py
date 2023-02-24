@@ -8,11 +8,13 @@ import numpy as np
 from shutil import copyfile
 import os
 import sys 
+import sqlite3 as db
 from selenium import webdriver 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from config import load_config
+from circ_data_cleaner import clean_and_format
 
 # This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
@@ -235,6 +237,12 @@ def get_mel(export, date, mel_config):
     print("Successfully retrieved interlibrary data")
 
 
+def get_curb(export, csv):
+    last_row = pd.read_csv(csv).iloc[-1]
+    if export['Date'] == last_row['Date']:
+        print(last_row['Date'])
+        export['CurbAppt'] = last_row['CurbAppt']
+
 # def append_to_csv(file_name, data): 
 #     """Appends the collected data into the CPL Circ Data.csv file as a single row. 
 #     file_name is the name of the file being edited
@@ -274,58 +282,65 @@ def get_mel(export, date, mel_config):
 #         print(r'Read only. To write to file, change "mode" in config.ini to "write".')
 
 
-def get_circ_data(date, config):
+def get_circ_data(date, config, csv):
     """Calls the functions to get data from Vea API, SierraDNA, 
     and MeL and the append function. Returns a dictionary with
     the new data.
     """
+    # new_row = {'id': None}
     new_row = {}
+
+    df = pd.read_csv(csv)
     get_vea(new_row, date, config['Vea'])
     get_sierra(new_row, date, config['SierraDNA'])
-    try: # selenium webdriver sometimes doesn't work
-        get_mel(new_row, date, config['MeL'])
-    except Exception as e:
-        print(e)
-    return new_row
+    # try: # selenium webdriver sometimes doesn't work
+    #     get_mel(new_row, date, config['MeL'])
+    # except Exception as e:
+    #     print(e)
+    get_curb(new_row, csv)
+    df2 = pd.DataFrame([new_row])
+    return df2
 
 
-def to_system(df, csv, backup, parquet):
+def to_system(df, config):
     """Generate CSV, backup CSV, and parquet file"""
-    df.to_csv(csv)
-    df.to_csv(backup)
-    df.to_parquet(parquet)
+    csv = config['Files']['csv']
+    backup = config['Files']['backup']
+    df.iloc[:, 1:21].to_csv(csv)
+    df.iloc[:, 1:21].to_csv(backup)
     print(f"CSV generated: {csv}")
     print(f"Backup CSV generated: {backup}")
-    print(f"Parquet generated: {parquet}")
 
 
 def main():
     config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
-    csv = config['Files']['csv']
-    backup = config['Files']['backup']
-    parquet = config['Files']['parquet']
-    df = pd.read_csv(csv)
-    
+    database = config['Files']['db']
+    conn = db.connect(database)
+
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
-        date = 'yesterday'
-        updated_df = get_circ_data(date, config)
-        to_system(updated_df, csv, backup, parquet)
-        return 0
+        new_row = get_circ_data('yesterday', config, csv)
+        new_row.to_sql("test", conn, if_exists = "append", index = False)
+        df = pd.read_sql_query("SELECT * FROM test", conn)
+        to_system(df, config)
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
             date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
             if date == 'q': 
-                return 0
+                break
             elif not date.isnumeric() or len(date) != 8:
                 print('Invalid entry')
                 continue
             else:
-                updated_df = get_circ_data(date, config)
-                to_system(updated_df, csv, backup, parquet)
-
+                new_row = get_circ_data(date, config, csv)
+                new_row.to_sql("test", conn, if_exists = "append", index = False)
+                df = pd.read_sql_query("SELECT * FROM test", conn)
+                to_system(df, config)
+    conn.commit()
+    conn.close()
+    return 0
 
 if __name__ == '__main__':
     main()
