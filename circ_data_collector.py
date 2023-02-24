@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from config import load_config
+import sqlite3 as db
 
 # This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
@@ -293,9 +294,9 @@ def get_circ_data(date, config, csv):
         get_mel(new_row, date, config['MeL'])
     except Exception as e:
         print(e)
-    # get_curb(new_row, csv)
-    updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index = True)
-    return updated_df
+    get_curb(new_row, csv)
+    df2 = pd.DataFrame([new_row])
+    return df2
 
 
 def to_system(df, csv, backup):
@@ -310,14 +311,16 @@ def main():
     config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
     csv = config['Files']['csv']
     backup = config['Files']['backup']
+    conn = db.connect(config['Files']['db'])
     
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
-        updated_df = get_circ_data('yesterday', config, csv)
-        to_system(updated_df, csv, backup)
-        return 0
+        new_row = get_circ_data('yesterday', config, csv)
+        new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
+        df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
+        to_system(df, config)
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
             date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
@@ -327,9 +330,13 @@ def main():
                 print('Invalid entry')
                 continue
             else:
-                updated_df = get_circ_data(date, config, csv)
-                to_system(updated_df, csv, backup)
-
+                new_row = get_circ_data(date, config, csv)
+                new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
+                df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
+                to_system(df, config)
+    conn.commit()
+    conn.close()
+    return 0
 
 if __name__ == '__main__':
     main()
