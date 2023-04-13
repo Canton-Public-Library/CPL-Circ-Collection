@@ -5,31 +5,18 @@ import csv
 import psycopg2
 import pandas as pd
 import numpy as np
-from shutil import copyfile
-import os
 import sys 
+from pathlib import Path
 from selenium import webdriver 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from config import load_config
-import sqlite3 as db
 
 # This script retrieves previous-day data from the SenSource Vea API, the SierraDNA database, and the MeL table and appends it to a csv file.
 # There is an optional manual mode that allows users to enter custom dates. This can be accessed by adding "manual" as a command-line argument.
 # The clean_upload_append.bat file runs this script at 8:00 AM every day. 
 # To properly run this file, there needs to be a config.ini file in the same directory. 
-
-# def create_new_row():
-#     """Returns a Pandas series to store the data in a single row
-#     """
-#     data = pd.Series(index = ['Id', 'Date', 'DoorCount', 'CheckedOut', 'TotalSelfCheck', 'DeskCheckOut', 
-#                             'Renewed', 'TotalCheckedIn', 'TotalCheckedOutReporting', 'Holds', 'New Patrons', 
-#                             'New Canton Patrons', 'CurbAppt', 'ILL Lent', 'ILL Borrowed', 'Day of Week', 
-#                             'Month', 'Year', 'Day', 'Day of Week Index', 'Comments'], 
-#                             dtype = 'int')
-#     data = data.replace({np.nan: None}) # Convert all NaN values to None (shows up as blank instead of 'NaN' on CSV files)
-#     return data
 
 
 def get_token(login_config):
@@ -74,7 +61,7 @@ def get_vea(export, date, vea_config):
     """
     url = vea_config['url']
     
-    authtoken = get_token(vea_config) #access token value
+    authtoken = get_token(vea_config) # get access token value
     
     auth = {
         'Authorization': f'Bearer {str(authtoken)}',
@@ -88,7 +75,7 @@ def get_vea(export, date, vea_config):
             'entityType': 'sensor',
             'metrics': 'ins',
         }
-    else:
+    else: # manual mode only
         date_string = str(date) 
         start = datetime(year = int(date_string[0:4]), 
                         month = int(date_string[4:6]), 
@@ -109,7 +96,7 @@ def get_vea(export, date, vea_config):
         print(f'API retrieval success: {response.status_code}')
         raw_data = response.json()['results']
         for item in raw_data:
-            if item['name'] == 'Main Entrance': # look for dictionary that contains main entrance ins
+            if item['name'] == 'Main Entrance': 
                 export['DoorCount'] = filter_vea(item) # add sumins to the export row
                 break
         print("Successfully retrieved Vea API data")
@@ -201,10 +188,8 @@ def get_mel(export, date, mel_config):
 
     driver = webdriver.Chrome(service = Service(ChromeDriverManager().install()))
     driver.get(url)
-
     select_frame = driver.find_element(By.XPATH, '/html[1]/frameset[1]/frameset[2]/frame[2]') # locates frame containing the data table
     driver.switch_to.frame(select_frame) # switches to frame containing the data table
-
     table = driver.find_element(By.XPATH, r'/html[1]/body[1]/center[2]')
     
     # check if Canton Public Library is in the table. If not, the ILL Lent and Borrowed fields will be left blank.
@@ -216,31 +201,33 @@ def get_mel(export, date, mel_config):
     index = 3 
     while True:  
         html_row = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[1]')
-        if cpl in html_row.text:  # looks for the row number of zv052
+        if cpl in html_row.text:  # looks for the row number of CPL
             break
         index += 1 
     lent = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[3]').text # number lent is always in 3rd column
     export['ILL Lent'] = lent     
 
-    if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: # assuming the index is the same for loans and borrows
+    # Typically the column index number for lent should be the same as the row index number for borrowed
+    # if it somehow isn't, the following code will manually search for the number borrowed in the table 
+    if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: 
         export['ILL Borrowed'] = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{index}]').text
     else:
         col_num = 3
         while True: 
             html_col=driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{col_num}]')
-            if cpl in html_col.text: # looks for the column number of zv052
+            if cpl in html_col.text: # looks for the column number of CPL
                 break
             col_num += 1
         borrowed = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{col_num}]').text # number borrowed is always in 3rd row
         export['ILL Borrowed'] = borrowed    
     print("Successfully retrieved interlibrary data")
 
-
-def get_curb(export, csv):
-    last_row = pd.read_csv(csv).iloc[-1]
-    if export['Date'] == last_row['Date']:
-        print(last_row['Date'])
-        export['CurbAppt'] = last_row['CurbAppt']
+# DEPRECATED
+# def get_curb(export, csv):
+#     last_row = pd.read_csv(csv).iloc[-1]
+#     if export['Date'] == last_row['Date']:
+#         print(last_row['Date'])
+#         export['CurbAppt'] = last_row['CurbAppt']
 
 # def append_to_csv(file_name, data): 
 #     """Appends the collected data into the CPL Circ Data.csv file as a single row. 
@@ -255,12 +242,10 @@ def get_curb(export, csv):
 #     except Exception:
 #         print('Could not modify file.')
 
-
 # def create_backup(file, backup):
 #     """Creates a backup of the circ data file"""
 #     path = copyfile(file, backup)
 #     print(f"Backup created: {path}")
-
 
 # def get_circ_data(export_data, date, config, file):
 #     """Calls the functions to get data from Vea API, SierraDNA, 
@@ -282,45 +267,47 @@ def get_curb(export, csv):
 
 
 def get_circ_data(date, config, csv):
-    """Calls the functions to get data from Vea API, SierraDNA, 
-    and MeL and the append function. Returns a dictionary with
-    the new data.
+    """Reads CPL Circ Data CSV file as a dataframe, calls the functions 
+    to get data from Vea API, SierraDNA, and MeL, and appends a new row of 
+    data to the dataframe. Returns updated dataframe
     """
     new_row = {}
     df = pd.read_csv(csv)
     get_vea(new_row, date, config['Vea'])
     get_sierra(new_row, date, config['SierraDNA'])
-    try: # selenium webdriver sometimes doesn't work
+    try:
         get_mel(new_row, date, config['MeL'])
     except Exception as e:
         print(e)
-    get_curb(new_row, csv)
-    df2 = pd.DataFrame([new_row])
-    return df2
+    updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index = True)
+    return updated_df
 
 
-def to_system(df, csv, backup):
-    """Generate CSV, backup CSV, and parquet file"""
-    df.iloc[:, 1:21].to_csv(csv)
-    df.iloc[:, 1:21](backup)
-    print(f"CSV generated: {csv}")
-    print(f"Backup CSV generated: {backup}")
+def to_system(df, csv, backup, write):
+    """Generate CSV and backup CSV and write to system"""
+    if write == "true":
+        df.iloc[:, 1:21].to_csv(csv)
+        df.iloc[:, 1:21].to_csv(backup)
+        print(f"CSV generated: {csv}")
+        print(f"Backup CSV generated: {backup}")
+    else:
+        print("Writing mode is disabled. To enable it, 'write' in the config.ini file"
+              + " must be set to 'true'")
 
 
 def main():
-    config = load_config(r'E:\APPLICATIONS\MATERIALS\data_collector\config.ini')
+    config = load_config(str(Path.cwd()) + "\config.ini")
     csv = config['Files']['csv']
     backup = config['Files']['backup']
-    conn = db.connect(config['Files']['db'])
-    
+    write = config['Files']['write'].lower()
+
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
     if len(sys.argv) == 1:  # auto mode: appends data from yesterday
-        new_row = get_circ_data('yesterday', config, csv)
-        new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
-        df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
-        to_system(df, config)
+        updated_df = get_circ_data('yesterday', config, csv)
+        to_system(updated_df, csv, backup, write)
+        return 0
     if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
         while True:
             date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
@@ -330,13 +317,9 @@ def main():
                 print('Invalid entry')
                 continue
             else:
-                new_row = get_circ_data(date, config, csv)
-                new_row.to_sql("CPLCircData", conn, if_exists = "append", index = False)
-                df = pd.read_sql_query("SELECT * FROM CPLCircData", conn)
-                to_system(df, config)
-    conn.commit()
-    conn.close()
-    return 0
+                updated_df = get_circ_data(date, config, csv)
+                to_system(updated_df, csv, backup, write)
+
 
 if __name__ == '__main__':
     main()
