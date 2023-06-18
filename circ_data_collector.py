@@ -192,7 +192,6 @@ def get_mel(export, date, mel_config):
     driver.switch_to.frame(select_frame) # switches to frame containing the data table
     table = driver.find_element(By.XPATH, r'/html[1]/body[1]/center[2]')
     
-    # check if Canton Public Library is in the table. If not, the ILL Lent and Borrowed fields will be left blank.
     if cpl not in table.text: 
         print("Interlibrary data not found.")
         return
@@ -221,49 +220,6 @@ def get_mel(export, date, mel_config):
         borrowed = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{col_num}]').text # number borrowed is always in 3rd row
         export['ILL Borrowed'] = borrowed    
     print("Successfully retrieved interlibrary data")
-
-# DEPRECATED
-# def get_curb(export, csv):
-#     last_row = pd.read_csv(csv).iloc[-1]
-#     if export['Date'] == last_row['Date']:
-#         print(last_row['Date'])
-#         export['CurbAppt'] = last_row['CurbAppt']
-
-# def append_to_csv(file_name, data): 
-#     """Appends the collected data into the CPL Circ Data.csv file as a single row. 
-#     file_name is the name of the file being edited
-#     data is the new row of data that will be appended.
-#     """
-#     try:
-#         with open(file_name, 'a', newline = '') as file:
-#             writer = csv.writer(file)
-#             writer.writerow(data)
-#         print('Successfully appended data')    
-#     except Exception:
-#         print('Could not modify file.')
-
-# def create_backup(file, backup):
-#     """Creates a backup of the circ data file"""
-#     path = copyfile(file, backup)
-#     print(f"Backup created: {path}")
-
-# def get_circ_data(export_data, date, config, file):
-#     """Calls the functions to get data from Vea API, SierraDNA, 
-#     and MeL and the append function.
-#     """
-#     get_vea(export_data, date, config['Vea'])
-#     get_sierra(export_data, date, config['SierraDNA'])
-#     try: # selenium webdriver sometimes doesn't work
-#         get_mel(export_data, date, config['MeL'])
-#     except Exception as e:
-#         print(e)
-#     if config['Files']['write'].lower() in ['true', 'yes']:
-#         print("Writing to file...")
-#         append_to_csv(file, export_data)
-#         create_backup(file, config['Files']['backup'])
-#     else:
-#         print(export_data)
-#         print(r'Read only. To write to file, change "mode" in config.ini to "write".')
 
 
 def get_circ_data(date, config, csv):
