@@ -235,6 +235,9 @@ def get_circ_data(date, config, csv):
         get_mel(new_row, date, config['MeL'])
     except Exception as e:
         print(e)
+    print("-----------------BEGIN DATA COLLECTION----------------------")
+    print(new_row)
+    print("-----------------END DATA COLLECTION------------------------")
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index = True)
     return updated_df
 
