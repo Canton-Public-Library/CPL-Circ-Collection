@@ -7,7 +7,7 @@ by the CPL Streamlit app.
 
 ## Data Files
 There are three versions of the file containing all the daily circulation data:
-1. **Working data file** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\Data\CPLCircShinyDashboardData\CPL Circ Data.csv`
+1. **Working data file** 
 
       This is the version that the application modifies directly. Awaits cleaning 
       and reformatting before being published to the web server.
@@ -15,12 +15,12 @@ There are three versions of the file containing all the daily circulation data:
       **NOTE**: The working data file must not be opened on any computer while the 
       application is running, or else the new data cannot be appended. 
 
-2. **Backup working data** `\\cpl-circserv\SHINY\Circ Shiny Dashboard\\Data\CPLCircShinyDashboardData\CPL Circ Data - Backup.csv`
+2. **Backup working data** 
 
       Backup of the working data file. If the main working data file is corrupted or lost, 
       simply restore it by renaming the backup file to `CPL Circ Data.csv`
 
-3.	[**Web server data file**](https://sat.cantonpl.org/shiny/CPL%20Circ%20Data.csv)
+3.	[**Web server data file**]
 
       The Streamlit app reads the data from this version. This version is copied from 
       the working version and cannot be modified directly by the application.
@@ -33,7 +33,7 @@ the following components for automating and collecting data:
       Directory containing the virtual environment for running the application. The 
       required Python packages are listed in requirements.txt. 
 
-2.	**Collection script** `\data_collector\circ_data_collector.py`
+2.	**Collection script** `circ_data_collector.py`
 
       Python script that collects data from the previous day from the 3 
       [data sources](https://github.com/Canton-Public-Library/CPL-Circ-Collection/blob/main/README.md#data-sources) 
@@ -43,7 +43,7 @@ the following components for automating and collecting data:
 
       Python script that reformats, sorts, and automatically generates new fields to the data. 
 
-4.	**Configuration file** `\data_collector\config.ini`
+4.	**Configuration file** `config.ini`
 
       Contains confidential information such as URLs and credentials for database access.
       Currently not contained in repository for security concerns. 
@@ -51,12 +51,12 @@ the following components for automating and collecting data:
       **NOTE**: for the collection script to append data to the data files, the “write” 
       variable under the [Files] section of the configuration file must be set to True. 
 
-5.	**Configuration Module** `\data_collector\config.py`
+5.	**Configuration Module** `config.py`
   
       Python module containing functions for parsing the config.ini file. Used by both 
       the cleaning and collection script.
 
-6.	**Batch file** `\data_collector\clean_upload_append.bat`
+6.	**Batch file** `clean_upload_append.bat`
       This file is triggered by the task scheduler every day to activate the virtual 
       environment, execute the cleaning script, upload the data file to the web server, 
       and then execute the collection script. 
@@ -72,7 +72,7 @@ Total Checked In, Total Checked Out Reporting, Holds, New Patrons, New Canton Pa
 3.	**Michigan eLibrary (MeL)**: Interlibrary Lent, Interlibrary Borrowed
 
 ## Debugging Components
-`E:\APPLICATIONS\MATERIALS` contains additional functionalities for debugging purposes:
+Contains additional functionalities for debugging purposes:
 1.	**Log files** `\Logs`
 
       When `clean_upload_append.bat` is executed, all console outputs are saved as log files. 
