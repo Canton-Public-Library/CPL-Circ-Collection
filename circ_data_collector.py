@@ -6,10 +6,14 @@ import psycopg2
 import pandas as pd
 import numpy as np
 import sys 
+import time
 from pathlib import Path
 from selenium import webdriver 
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from config import load_config
 
@@ -151,6 +155,8 @@ def get_sierra(export, mode, sierra_config):
         AND date(creation_date_gmt) = date({date})
         AND barcode LIKE '25149%';"""
 
+
+
     sql_data = []
     cursor = conn.cursor()
     cursor.execute(circ) # add circ data to list
@@ -171,55 +177,121 @@ def get_sierra(export, mode, sierra_config):
     print("Successfully retrieved SierraDNA data")
 
 
-def get_mel(export, date, mel_config):
-    """Retrieves data on interlibrary loans and borrowing from MeL website
-    date- because the site does not 
-    support specific dates, "manual" mode on this will not work.
-    export is the new row that will be appended to the file.
-    date- because the site does not support specific dates, "manual" mode on this will not work.
-    mel_config is the MeL section from the config file.
-    """ 
-    if date != 'yesterday': 
-        export['Comments'] = 'manual entry required for ILL lent and ILL borrowed'
-        return
 
-    url = mel_config['url'] 
-    cpl = mel_config['code'] # get library code
 
-    driver = webdriver.Chrome(service = Service(ChromeDriverManager().install()))
-    driver.get(url)
-    select_frame = driver.find_element(By.XPATH, '/html[1]/frameset[1]/frameset[2]/frame[2]') # locates frame containing the data table
-    driver.switch_to.frame(select_frame) # switches to frame containing the data table
-    table = driver.find_element(By.XPATH, r'/html[1]/body[1]/center[2]')
+def get_mel(export, mel_config):
+    """goes to CPLs web management reports site and retrieves interlibrary data from yesterday"""
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    driver = webdriver.Chrome(options = chrome_options)
+
+    yesterday = (datetime.today() - timedelta(days = 1)).strftime('%m%d')
+  
+    url = mel_config['url'] + f'1.y.{yesterday}/?'
+    user = mel_config['username']
+    password = mel_config['password']
+
+    driver.get(url)  
     
-    if cpl not in table.text: 
-        print("Interlibrary data not found.")
-        return
-        
-    # find ILL lent
-    index = 3 
-    while True:  
-        html_row = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[1]')
-        if cpl in html_row.text:  # looks for the row number of CPL
-            break
-        index += 1 
-    lent = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[3]').text # number lent is always in 3rd column
-    export['ILL Lent'] = lent     
+    #wait for page to load, then login
+    WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'body > div:nth-child(2) > form > table > tbody > tr:nth-child(1) > td:nth-child(2) > input')))
+    driver.find_element(By.CSS_SELECTOR, 'body > div:nth-child(2) > form > table > tbody > tr:nth-child(1) > td:nth-child(2) > input').send_keys(user)
+    driver.find_element(By.CSS_SELECTOR, 'body > div:nth-child(2) > form > table > tbody > tr:nth-child(2) > td:nth-child(2) > input[type=PASSWORD]').send_keys(password)
+    driver.find_element(By.CSS_SELECTOR, 'body > div:nth-child(2) > form > table > tbody > tr:nth-child(3) > td > input[type=SUBMIT]').click()
 
-    # Typically the column index number for lent should be the same as the row index number for borrowed
-    # if it somehow isn't, the following code will manually search for the number borrowed in the table 
-    if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: 
-        export['ILL Borrowed'] = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{index}]').text
-    else:
-        col_num = 3
-        while True: 
-            html_col=driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{col_num}]')
-            if cpl in html_col.text: # looks for the column number of CPL
-                break
-            col_num += 1
-        borrowed = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{col_num}]').text # number borrowed is always in 3rd row
-        export['ILL Borrowed'] = borrowed    
+    time.sleep(8)
+
+    """Modified 4/20/206- goes directly to URL with wanted frame/table"""
+#     #website uses frames, which means that it refrences different URLs outside of the main page, and in order to interact with any element inside the frames, you must 
+#     #switch to the frame containing the element
+#     frame1 = driver.find_element(By.CSS_SELECTOR, 'html > frameset > frameset:nth-child(2) > frame:nth-child(1)')
+#     driver.switch_to.frame(frame1)         
+
+#     #change date range to 'yesterday'
+#     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'body > table > tbody > tr:nth-child(9) > td > a')))
+#     driver.find_element(By.CSS_SELECTOR, 'body > table > tbody > tr:nth-child(9) > td > a').click()
+
+#    #force sleep, since waits wouldn't work
+#     time.sleep(5)
+    
+#     #click submit
+#     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'body > table > tbody > tr:nth-child(15) > td > form > input[type=submit]')))     
+#     driver.find_element(By.CSS_SELECTOR, 'body > table > tbody > tr:nth-child(15) > td > form > input[type=submit]').click()
+    
+#     #force sleep (waits wouldn't work) 
+#     time.sleep(5)
+
+#     #have to switch back to main page from previous frame, otherwise webdriver won't be able to find any concurrent elements
+#     driver.switch_to.default_content()
+    
+    #switch to frame with main table to get totals
+    frame2 = driver.find_element(By.CSS_SELECTOR, 'html > frameset > frameset:nth-child(2) > frame:nth-child(2)')
+    driver.switch_to.frame(frame2)
+
+    time.sleep(5)
+
+    checkouts_from = driver.find_element(By.CSS_SELECTOR, '#report-div > div > table > tfoot > tr > td:nth-child(2)')
+    checkouts_to = driver.find_element(By.CSS_SELECTOR, '#report-div > div > table > tfoot > tr > td:nth-child(3)')
+
+    export['ILL Lent'] = checkouts_from.text
+    export['ILL Borrowed'] = checkouts_to.text
+
     print("Successfully retrieved interlibrary data")
+
+
+
+
+"""Depreciated, MeL url no longer exists/is down and don't know if it will return"""
+# def get_mel(export, date, mel_config):
+#     """Retrieves data on interlibrary loans and borrowing from MeL website
+#     date- because the site does not 
+#     support specific dates, "manual" mode on this will not work.
+#     export is the new row that will be appended to the file.
+#     date- because the site does not support specific dates, "manual" mode on this will not work.
+#     mel_config is the MeL section from the config file.
+#     """ 
+#     if date != 'yesterday': 
+#         export['Comments'] = 'manual entry required for ILL lent and ILL borrowed'
+#         return
+
+#     url = mel_config['url'] 
+#     cpl = mel_config['code'] # get library code
+
+#     driver = webdriver.Chrome(service = Service(ChromeDriverManager().install()))
+#     driver.get(url)
+#     select_frame = driver.find_element(By.XPATH, '/html[1]/frameset[1]/frameset[2]/frame[2]') # locates frame containing the data table
+#     driver.switch_to.frame(select_frame) # switches to frame containing the data table
+#     table = driver.find_element(By.XPATH, r'/html[1]/body[1]/center[2]')
+    
+#     if cpl not in table.text: 
+#         print("Interlibrary data not found.")
+#         return
+        
+#     # find ILL lent
+#     index = 3 
+#     while True:  
+#         html_row = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[1]')
+#         if cpl in html_row.text:  # looks for the row number of CPL
+#             break
+#         index += 1 
+#     lent = driver.find_element(By.XPATH, f'//tbody/tr[{index}]/td[3]').text # number lent is always in 3rd column
+#     export['ILL Lent'] = lent     
+
+#     # Typically the column index number for lent should be the same as the row index number for borrowed
+#     # if it somehow isn't, the following code will manually search for the number borrowed in the table 
+#     if driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{index}]').text == cpl: 
+#         export['ILL Borrowed'] = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{index}]').text
+#     else:
+#         col_num = 3
+#         while True: 
+#             html_col=driver.find_element(By.XPATH, f'//tbody/tr[2]/td[{col_num}]')
+#             if cpl in html_col.text: # looks for the column number of CPL
+#                 break
+#             col_num += 1
+#         borrowed = driver.find_element(By.XPATH, f'//tbody/tr[3]/td[{col_num}]').text # number borrowed is always in 3rd row
+#         export['ILL Borrowed'] = borrowed    
+#     print("Successfully retrieved interlibrary data")
 
 
 def get_circ_data(date, config, csv):
@@ -232,9 +304,19 @@ def get_circ_data(date, config, csv):
     get_vea(new_row, date, config['Vea'])
     get_sierra(new_row, date, config['SierraDNA'])
     try:
-        get_mel(new_row, date, config['MeL'])
+        get_mel(new_row, config['MeL'])
     except Exception as e:
         print(e)
+        print('Failed to get MeL data, trying once more.')
+        try:
+            get_mel(new_row, config['MeL'])
+        
+        except Exception as error:
+            print('Failed to get MeL data a second time. Error: ', error)
+
+    print("-----------------BEGIN DATA COLLECTION----------------------")
+    print(new_row)
+    print("-----------------END DATA COLLECTION------------------------")
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index = True)
     return updated_df
 
@@ -257,6 +339,7 @@ def main():
     backup = config['Files']['backup']
     write = config['Files']['write'].lower()
 
+
     if len(sys.argv) != 1 and sys.argv[1] != 'manual': 
         print("Invalid argument. Either leave blank for auto mode, or enter 'manual'.")
         return -1
@@ -264,9 +347,9 @@ def main():
         updated_df = get_circ_data('yesterday', config, csv)
         to_system(updated_df, csv, backup, write)
         return 0
-    if sys.argv[1] == 'manual':  # manual mode: append data from specific date. 
+    if sys.argv[1] == 'manual':  # manual mode: append data from specific date. New note (9/19/24): cannot choose specific date for MeL, can only get yesterdays data otherwise website only offers monthly statistics
         while True:
-            date = input("Enter a date in the format YYYYMMDD or 'q' to quit: ") 
+            date = input("Enter a date in the format YYYYMMDD or 'q' to quit. Note MeL data will only be correct if the date is the day before from the current date. Double check MeL data when running manual mode:  ") 
             if date == 'q': 
                 return 0
             elif not date.isnumeric() or len(date) != 8:
@@ -276,7 +359,7 @@ def main():
                 updated_df = get_circ_data(date, config, csv)
                 to_system(updated_df, csv, backup, write)
 
-
 if __name__ == '__main__':
     main()
+
 

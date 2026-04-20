@@ -1,2 +1,5 @@
 *.ini
 *.csv
+ILL_testing.py
+*.bat
+*.pyc
